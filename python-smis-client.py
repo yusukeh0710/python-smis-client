@@ -18,7 +18,7 @@ def opt_parse():
 
     # Get Instance
     gi_parser = subparsers.add_parser('gi', help='Get Instance')
-    gi_parser.add_argument('instancepath', help='CIM Instance Path')
+    gi_parser.add_argument('instancename', help='CIM Instance Path')
 
     # Enumerate Instances
     ei_parser = subparsers.add_parser('ei', help='Enumerate Instances')
@@ -43,16 +43,45 @@ def create_smis_connection(user, password, location, namespace):
     conn = pywbem.WBEMConnection(url, creds, default_namespace=namespace)
     return conn
 
+def create_output_from_instancename_object(instancename_obj):
+    classname = instancename_obj.classname
+    keys = instancename_obj.keys()
+    values = instancename_obj.values()
+    keybindings = {keys[i] : values[i] for i in range(min(len(keys), len(values)))}
+    namespace = instancename_obj.nammespace
+    
+    output = {'classname' : classname,
+              'keybindings' : keybindings,
+              'namespace' : namespace}
+
+    return str(output).replace(' ','')
+
+def create_instancename_object_from_input(input_string):
+    instancename_dict = eval(input_string)
+    try:
+        instancename = pywbem.CIMInstanceName(
+                            instancename_dict['classname'],
+                            namespace=instancename_dict['namespace'],
+                            keybindings=instancename_dict['keybindings']
+                        )
+    except NameError as ex:
+        print ex
+        sys.exit(1)
+
+    return instancename
+
 def GetInstance(conn, **params):
-    instancepath = params.pop('instancepath')
+    instancename_string = params.pop('instancename')
+    instancename = create_instancename_object_from_input(instancename_string)
 
     try:
         result = conn.GetInstance(
-                    instancepath,
+                    instancename,
                     **params)
-        print result
-    except:
-        print "error"
+        for key, value in result.iteritems():
+            print "%s : %s" % (key, value.value)
+    except Exception as ex:
+        print ex
 
 def EnumerateInstances(conn, **params):
     classname = params.pop('classname')
@@ -63,8 +92,8 @@ def EnumerateInstances(conn, **params):
                      **params)
         for result in results:
             print result
-    except:
-        print "error"
+    except Exception as ex:
+        print ex
 
 def EnumerateInstanceNames(conn, **params):
     classname = params.pop('classname')
@@ -74,9 +103,9 @@ def EnumerateInstanceNames(conn, **params):
                      classname,
                      **params)
         for result in results:
-            print result
-    except:
-        print "error"
+            print create_output_from_instancename_object(result)
+    except Exception as ex:
+        print ex
 
 if __name__ == '__main__':
     # get arguments 
