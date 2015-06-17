@@ -28,6 +28,12 @@ def opt_parse():
     en_parser = subparsers.add_parser('en', help='Enumerate Instance Names')
     en_parser.add_argument('classname', help='CIM Class Name')
 
+    # Enumerate Associators
+    a_parser = subparsers.add_parser('a', help='Enumerate Associators')
+    a_parser.add_argument('instancename', help='CIM Class Name')
+    a_parser.add_argument('-ac', help='Associator Class')
+    a_parser.add_argument('-rc', help='Result Class')
+
     # generate option list
     args = parser.parse_args()
 
@@ -43,20 +49,26 @@ def create_smis_connection(user, password, location, namespace):
     conn = pywbem.WBEMConnection(url, creds, default_namespace=namespace)
     return conn
 
-def create_output_from_instancename_object(instancename_obj):
+def print_instancename(instancename_obj):
     classname = instancename_obj.classname
     keys = instancename_obj.keys()
     values = instancename_obj.values()
     keybindings = {keys[i] : values[i] for i in range(min(len(keys), len(values)))}
-    namespace = instancename_obj.nammespace
+    namespace = instancename_obj.namespace
     
     output = {'classname' : classname,
               'keybindings' : keybindings,
               'namespace' : namespace}
 
-    return str(output).replace(' ','')
+    print str(output).replace(' ','')
+    return
 
-def create_instancename_object_from_input(input_string):
+def print_instance(instance_obj):
+    for key, value in instance_obj.iteritems():
+        print "%s : %s" % (key, value)
+    return
+
+def create_instancename(input_string):
     instancename_dict = eval(input_string)
     try:
         instancename = pywbem.CIMInstanceName(
@@ -72,14 +84,13 @@ def create_instancename_object_from_input(input_string):
 
 def GetInstance(conn, **params):
     instancename_string = params.pop('instancename')
-    instancename = create_instancename_object_from_input(instancename_string)
+    instancename = create_instancename(instancename_string)
 
     try:
         result = conn.GetInstance(
                     instancename,
                     **params)
-        for key, value in result.iteritems():
-            print "%s : %s" % (key, value.value)
+        print_instance(result)
     except Exception as ex:
         print ex
 
@@ -91,7 +102,9 @@ def EnumerateInstances(conn, **params):
                      classname,
                      **params)
         for result in results:
-            print result
+            print result.path
+            print_instance(result)
+        print ""
     except Exception as ex:
         print ex
 
@@ -103,7 +116,28 @@ def EnumerateInstanceNames(conn, **params):
                      classname,
                      **params)
         for result in results:
-            print create_output_from_instancename_object(result)
+            print_instancename(result)
+    except Exception as ex:
+        print ex
+
+def Associators(conn, **arg_params):
+    instancename = arg_params.pop('instancename')
+    ac = arg_params.pop('ac')
+    rc = arg_params.pop('rc')
+    params = arg_params
+
+    if ac is not None:
+        params['AssocClass'] = ac
+
+    if rc is not None:
+        params['ResultClass'] = rc
+
+    try:
+        results = conn.Associators(
+                    instancename,
+                    **params)
+        for result in results:
+            print_instancename(result)
     except Exception as ex:
         print ex
 
@@ -126,5 +160,7 @@ if __name__ == '__main__':
         EnumerateInstances(conn, **args)
     elif operation == 'en':
         EnumerateInstanceNames(conn, **args)
+    elif operation == 'a':
+        Associators(conn, **args)
 
     sys.exit(0)
