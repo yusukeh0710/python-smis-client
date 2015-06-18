@@ -104,7 +104,7 @@ def EnumerateInstances(conn, **params):
         for result in results:
             print result.path
             print_instance(result)
-        print ""
+            print "\n"
     except Exception as ex:
         print ex
 
