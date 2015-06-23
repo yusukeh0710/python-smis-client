@@ -34,6 +34,12 @@ def opt_parse():
     a_parser.add_argument('-ac', help='Associator Class')
     a_parser.add_argument('-rc', help='Result Class')
 
+    # Enumerate Associators
+    an_parser = subparsers.add_parser('an', help='Enumerate Associator Names')
+    an_parser.add_argument('instancename', help='CIM Class Name')
+    an_parser.add_argument('-ac', help='Associator Class')
+    an_parser.add_argument('-rc', help='Result Class')
+
     # generate option list
     args = parser.parse_args()
 
@@ -64,8 +70,10 @@ def print_instancename(instancename_obj):
     return
 
 def print_instance(instance_obj):
+    print "path: %s\n" % instance_obj.path
     for key, value in instance_obj.iteritems():
         print "%s : %s" % (key, value)
+    print "\n"
     return
 
 def create_instancename(input_string):
@@ -102,9 +110,7 @@ def EnumerateInstances(conn, **params):
                      classname,
                      **params)
         for result in results:
-            print result.path
             print_instance(result)
-            print "\n"
     except Exception as ex:
         print ex
 
@@ -120,11 +126,12 @@ def EnumerateInstanceNames(conn, **params):
     except Exception as ex:
         print ex
 
-def Associators(conn, **arg_params):
-    instancename = arg_params.pop('instancename')
-    ac = arg_params.pop('ac')
-    rc = arg_params.pop('rc')
-    params = arg_params
+def Associators(conn, **params):
+    instancename_string = params.pop('instancename')
+    instancename = create_instancename(instancename_string)
+
+    ac = params.pop('ac')
+    rc = params.pop('rc')
 
     if ac is not None:
         params['AssocClass'] = ac
@@ -137,8 +144,30 @@ def Associators(conn, **arg_params):
                     instancename,
                     **params)
         for result in results:
-            print_instancename(result)
+            print_instance(result)
     except Exception as ex:
+        print ex
+
+def AssociatorNames(conn, **params):
+    instancename_string = params.pop('instancename')
+    instancename = create_instancename(instancename_string)
+
+    ac = params.pop('ac')
+    rc = params.pop('rc')
+
+    if ac is not None:
+        params['AssocClass'] = ac
+
+    if rc is not None:
+        params['ResultClass'] = rc
+
+    try:
+        results = conn.AssociatorNames(
+                    instancename,
+                    **params)
+        for result in results:
+            print_instancename(result)
+    except Exception as es:
         print ex
 
 if __name__ == '__main__':
@@ -162,5 +191,7 @@ if __name__ == '__main__':
         EnumerateInstanceNames(conn, **args)
     elif operation == 'a':
         Associators(conn, **args)
+    elif operation == 'an':
+        AssociatorNames(conn, **args)
 
     sys.exit(0)
