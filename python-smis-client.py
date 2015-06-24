@@ -34,11 +34,21 @@ def opt_parse():
     a_parser.add_argument('-ac', help='Associator Class')
     a_parser.add_argument('-rc', help='Result Class')
 
-    # Enumerate Associators
+    # Enumerate Associator Names
     an_parser = subparsers.add_parser('an', help='Enumerate Associator Names')
     an_parser.add_argument('instancename', help='CIM Class Name')
     an_parser.add_argument('-ac', help='Associator Class')
     an_parser.add_argument('-rc', help='Result Class')
+
+    # Enumerate References
+    r_parser = subparsers.add_parser('r', help='Enumerate References')
+    r_parser.add_argument('instancename', help='CIM Class Name')
+    r_parser.add_argument('-rc', help='Result Class')
+
+    # Enumerate Reference Names
+    rn_parser = subparsers.add_parser('rn', help='Enumerate Reference Names')
+    rn_parser.add_argument('instancename', help='CIM Class Name')
+    rn_parser.add_argument('-rc', help='Result Class')
 
     # generate option list
     args = parser.parse_args()
@@ -170,6 +180,41 @@ def AssociatorNames(conn, **params):
     except Exception as es:
         print ex
 
+def References(conn, **params):
+    instancename_string = params.pop('instancename')
+    instancename = create_instancename(instancename_string)
+
+    rc = params.pop('rc')
+    if rc is not None:
+        params['ResultClass'] = rc
+
+    try:
+        results = conn.References(
+                    instancename,
+                    **params)
+        for result in results:
+            print_instance(result)
+    except Exception as ex:
+        print ex
+
+def ReferenceNames(conn, **params):
+    instancename_string = params.pop('instancename')
+    instancename = create_instancename(instancename_string)
+
+    rc = params.pop('rc')
+    if rc is not None:
+        params['ResultClass'] = rc
+
+    try:
+        results = conn.ReferenceNames(
+                    instancename,
+                    **params)
+        for result in results:
+            print_instancename(result)
+    except Exception as es:
+        print ex
+
+
 if __name__ == '__main__':
     # get arguments 
     args = opt_parse()
@@ -193,5 +238,9 @@ if __name__ == '__main__':
         Associators(conn, **args)
     elif operation == 'an':
         AssociatorNames(conn, **args)
+    elif operation == 'r':
+        References(conn, **args)
+    elif operation == 'rn':
+        ReferenceNames(conn, **args)
 
     sys.exit(0)
