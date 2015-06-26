@@ -32,24 +32,24 @@ def opt_parse():
 
     # Enumerate Associators
     a_parser = subparsers.add_parser('a', help='Enumerate Associators')
-    a_parser.add_argument('instancename', help='CIM Class Name')
+    a_parser.add_argument('instancename', help='CIM Instance Name')
     a_parser.add_argument('-ac', help='Associator Class')
     a_parser.add_argument('-rc', help='Result Class')
 
     # Enumerate Associator Names
     an_parser = subparsers.add_parser('an', help='Enumerate Associator Names')
-    an_parser.add_argument('instancename', help='CIM Class Name')
+    an_parser.add_argument('instancename', help='CIM Instance Name')
     an_parser.add_argument('-ac', help='Associator Class')
     an_parser.add_argument('-rc', help='Result Class')
 
     # Enumerate References
     r_parser = subparsers.add_parser('r', help='Enumerate References')
-    r_parser.add_argument('instancename', help='CIM Class Name')
+    r_parser.add_argument('instancename', help='CIM Instance Name')
     r_parser.add_argument('-rc', help='Result Class')
 
     # Enumerate Reference Names
     rn_parser = subparsers.add_parser('rn', help='Enumerate Reference Names')
-    rn_parser.add_argument('instancename', help='CIM Class Name')
+    rn_parser.add_argument('instancename', help='CIM Instance Name')
     rn_parser.add_argument('-rc', help='Result Class')
 
     # generate option list
@@ -94,7 +94,7 @@ def print_instance(instance_obj):
 
 def create_instancename(input_string):
     ''' create instance from string '''
-    instancename_dict = eval(input_string.replace('&nbsp;'))
+    instancename_dict = eval(input_string.replace('&nbsp;', ' '))
     try:
         instancename = pywbem.CIMInstanceName(
             instancename_dict['classname'],
