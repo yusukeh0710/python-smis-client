@@ -5,6 +5,14 @@ import argparse
 import pywbem
 import sys
 
+
+ESC_SPACE = "nbsp;"
+
+###################################
+# Common Functions
+###################################
+
+
 def opt_parse():
     ''' parser '''
     parser = argparse.ArgumentParser()
@@ -52,6 +60,12 @@ def opt_parse():
     rn_parser.add_argument('instancename', help='CIM Instance Name')
     rn_parser.add_argument('-rc', help='Result Class')
 
+    # InvokeMethod
+    im_parser = subparsers.add_parser('im', help='InvokeMethod')
+    im_parser.add_argument('instancename', help='CIM Instance Name')
+    im_parser.add_argument('methodname', help='Method Name')
+    im_parser.add_argument('parameters', nargs='*', help='Parameters')
+
     # generate option list
     args = parser.parse_args()
 
@@ -61,6 +75,7 @@ def opt_parse():
 
     return args.__dict__
 
+
 def create_smis_connection(user, password, location, namespace):
     ''' create instance for connecting target'''
     url = 'http://' + location
@@ -68,21 +83,23 @@ def create_smis_connection(user, password, location, namespace):
     conn = pywbem.WBEMConnection(url, creds, default_namespace=namespace)
     return conn
 
+
 def print_instancename(instancename_obj):
     ''' print instance name '''
     classname = instancename_obj.classname
     keys = instancename_obj.keys()
     values = instancename_obj.values()
-    keybindings = {keys[i] : values[i].replace(' ', '&nbsp;') \
-                        for i in range(min(len(keys), len(values)))}
+    keybindings = {keys[i]: values[i].replace(' ', ESC_SPACE)
+                   for i in range(min(len(keys), len(values)))}
     namespace = instancename_obj.namespace
 
-    output = {'classname' : classname,
-              'keybindings' : keybindings,
-              'namespace' : namespace}
+    output = {'classname': classname,
+              'keybindings': keybindings,
+              'namespace': namespace}
 
     print str(output).replace(' ', '')
     return
+
 
 def print_instance(instance_obj):
     ''' print instance information '''
@@ -92,70 +109,87 @@ def print_instance(instance_obj):
     print "\n"
     return
 
-def create_instancename(input_string):
-    ''' create instance from string '''
-    instancename_dict = eval(input_string.replace('&nbsp;', ' '))
+
+def create_instancename(string):
+    ''' create CIMinstanceName from string '''
+    instancename_info = eval(string.replace(ESC_SPACE, ' '))
     try:
         instancename = pywbem.CIMInstanceName(
-            instancename_dict['classname'],
-            namespace=instancename_dict['namespace'],
-            keybindings=instancename_dict['keybindings'])
+            instancename_info['classname'],
+            namespace=instancename_info['namespace'],
+            keybindings=instancename_info['keybindings'])
     except NameError as ex:
         print ex
         sys.exit(1)
 
     return instancename
 
-def GetInstance(conn, **kwarg):
+
+def create_parameter(string_list):
+    ''' create parameter dictionary from string list'''
+    parameter = {}
+    for string in string_list:
+        key, value = string.split('=', 1)
+        if isinstance(value, int):
+            parameter[key] = pywbem.Uint16(value)
+        elif (value[0] == '{') and (value[-1] == '}'):
+            parameter[key] = create_instancename(value)
+        else:
+            parameter[key] = value
+
+    return parameter
+
+
+###################################
+# Operations
+###################################
+
+
+def GetInstance(conn, **kwargs):
     ''' Get Instance '''
-    instancename_string = kwarg.pop('instancename')
-    instancename = create_instancename(instancename_string)
-    params = kwarg
+    instancename = create_instancename(kwargs['instancename'])
 
     try:
         result = conn.GetInstance(
-            instancename,
-            **params)
+            instancename)
         print_instance(result)
     except Exception as ex:
         print ex
 
-def EnumerateInstances(conn, **kwarg):
+
+def EnumerateInstances(conn, **kwargs):
     ''' Enumerate Instances '''
-    classname = kwarg.pop('classname')
-    params = kwarg
+    classname = kwargs['classname']
 
     try:
         results = conn.EnumerateInstances(
-            classname,
-            **params)
+            classname)
         for result in results:
             print_instance(result)
     except Exception as ex:
         print ex
 
-def EnumerateInstanceNames(conn, **kwarg):
+
+def EnumerateInstanceNames(conn, **kwargs):
     ''' Enumerate Instance Names '''
-    classname = kwarg.pop('classname')
-    params = kwarg
+    classname = kwargs['classname']
 
     try:
         results = conn.EnumerateInstanceNames(
-            classname,
-            **params)
+            classname)
         for result in results:
             print_instancename(result)
     except Exception as ex:
         print ex
 
-def Associators(conn, **kwarg):
-    ''' Enumerate Associatos '''
-    instancename_string = kwarg.pop('instancename')
-    instancename = create_instancename(instancename_string)
 
-    ac = kwarg.pop('ac')
-    rc = kwarg.pop('rc')
-    params = kwarg
+def Associators(conn, **kwargs):
+    ''' Enumerate Associatos '''
+    instancename = create_instancename(kwargs['instancename'])
+    params = {}
+
+    ac = kwargs['ac']
+    rc = kwargs['rc']
 
     if ac is not None:
         params['AssocClass'] = ac
@@ -172,14 +206,14 @@ def Associators(conn, **kwarg):
     except Exception as ex:
         print ex
 
-def AssociatorNames(conn, **kwarg):
-    ''' Enumerate Associato Names '''
-    instancename_string = kwarg.pop('instancename')
-    instancename = create_instancename(instancename_string)
 
-    ac = kwarg.pop('ac')
-    rc = kwarg.pop('rc')
-    params = kwarg
+def AssociatorNames(conn, **kwargs):
+    ''' Enumerate Associato Names '''
+    instancename = create_instancename(kwargs['instancename'])
+    params = {}
+
+    ac = kwargs['ac']
+    rc = kwargs['rc']
 
     if ac is not None:
         params['AssocClass'] = ac
@@ -196,14 +230,13 @@ def AssociatorNames(conn, **kwarg):
     except Exception as ex:
         print ex
 
-def References(conn, **kwarg):
+
+def References(conn, **kwargs):
     ''' Enumerate References '''
-    instancename_string = kwarg.pop('instancename')
-    instancename = create_instancename(instancename_string)
+    instancename = create_instancename(kwargs['instancename'])
+    params = {}
 
-    rc = kwarg.pop('rc')
-    params = kwarg
-
+    rc = kwargs['rc']
     if rc is not None:
         params['ResultClass'] = rc
 
@@ -216,14 +249,13 @@ def References(conn, **kwarg):
     except Exception as ex:
         print ex
 
-def ReferenceNames(conn, **kwarg):
+
+def ReferenceNames(conn, **kwargs):
     ''' Enumerate Reference Names '''
-    instancename_string = kwarg.pop('instancename')
-    instancename = create_instancename(instancename_string)
+    instancename = create_instancename(kwargs['instancename'])
+    params = {}
 
-    rc = kwarg.pop('rc')
-    params = kwarg
-
+    rc = kwargs['rc']
     if rc is not None:
         params['ResultClass'] = rc
 
@@ -235,6 +267,20 @@ def ReferenceNames(conn, **kwarg):
             print_instancename(result)
     except Exception as ex:
         print ex
+
+
+def InvokeMethod(conn, **kwargs):
+    ''' InvokeMethod '''
+    instancename = create_instancename(kwargs['instancename'])
+    methodname = kwargs['methodname']
+    parameters = create_parameter(kwargs['parameters'])
+    print "this is experiment source code, and exit 1"
+    sys.exit(1)
+
+
+###################################
+# Main
+###################################
 
 
 if __name__ == '__main__':
@@ -264,5 +310,7 @@ if __name__ == '__main__':
         References(conn, **args)
     elif operation == 'rn':
         ReferenceNames(conn, **args)
+    elif operation == 'im':
+        InvokeMethod(conn, **args)
 
     sys.exit(0)
