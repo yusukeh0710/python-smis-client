@@ -62,9 +62,9 @@ def opt_parse():
 
     # InvokeMethod
     im_parser = subparsers.add_parser('im', help='InvokeMethod')
-    im_parser.add_argument('instancename', help='CIM Instance Name')
+    im_parser.add_argument('objectname', help='CIM Object Name')
     im_parser.add_argument('methodname', help='Method Name')
-    im_parser.add_argument('parameters', nargs='*', help='Parameters')
+    im_parser.add_argument('params', nargs='*', help='Parameters ( key1=value1 key2=value2 ..)')
 
     # generate option list
     args = parser.parse_args()
@@ -89,7 +89,7 @@ def print_instancename(instancename_obj):
     classname = instancename_obj.classname
     keys = instancename_obj.keys()
     values = instancename_obj.values()
-    keybindings = {keys[i]: values[i].replace(' ', ESC_SPACE)
+    keybindings = {keys[i]: str(values[i]).replace(' ', ESC_SPACE)
                    for i in range(min(len(keys), len(values)))}
     namespace = instancename_obj.namespace
 
@@ -127,17 +127,23 @@ def create_instancename(string):
 
 def create_parameter(string_list):
     ''' create parameter dictionary from string list'''
-    parameter = {}
+    param = {}
     for string in string_list:
-        key, value = string.split('=', 1)
-        if isinstance(value, int):
-            parameter[key] = pywbem.Uint16(value)
-        elif (value[0] == '{') and (value[-1] == '}'):
-            parameter[key] = create_instancename(value)
-        else:
-            parameter[key] = value
+        try:
+            key, value = string.split('=', 1)
+        except ValueError:
+            print "Invalid argument : %s" % string
+            print "Input in \'key\'=\'value\' style"
+            sys.exit(1)
 
-    return parameter
+        if value.isdigit() is True:
+            param[key] = pywbem.Uint16(value)
+        elif (value[0] == '{') and (value[-1] == '}'):
+            param[key] = create_instancename(value)
+        else:
+            param[key] = value
+
+    return param
 
 
 ###################################
@@ -271,12 +277,17 @@ def ReferenceNames(conn, **kwargs):
 
 def InvokeMethod(conn, **kwargs):
     ''' InvokeMethod '''
-    instancename = create_instancename(kwargs['instancename'])
+    objectname = create_instancename(kwargs['objectname'])
     methodname = kwargs['methodname']
-    parameters = create_parameter(kwargs['parameters'])
-    print "this is experiment source code, and exit 1"
-    sys.exit(1)
+    params = create_parameter(kwargs['params'])
 
+    (rc, result) = conn.InvokeMethod(
+        methodname,
+        objectname,
+        **params)
+
+    print "return code: %s" % rc
+    print result
 
 ###################################
 # Main
