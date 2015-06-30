@@ -6,7 +6,15 @@ import pywbem
 import sys
 
 
+###################################
+# Definition
+###################################
 ESC_SPACE = "nbsp;"
+MAX_UINT8 = 256
+MAX_UINT16 = 65536
+MAX_UINT32 = 4294967296
+MAX_UINT64 = 18446744073709551616
+
 
 ###################################
 # Common Functions
@@ -127,6 +135,21 @@ def create_instancename(string):
 
 def create_parameter(string_list):
     ''' create parameter dictionary from string list'''
+    def get_uintvalue(str_intvalue):
+        intvalue = int(str_intvalue)
+        if intvalue < MAX_UINT8:
+            return pywbem.Uint8(str_intvalue)
+        elif intvalue < MAX_UINT16:
+            return pywbem.Uint16(str_intvalue)
+        elif intvalue < MAX_UINT32:
+            return pywbem.Uint32(str_intvalue)
+        elif intvalue < MAX_UINT64:
+            return pywbem.Uint64(str_intvalue)
+        else:
+            print "Input value is too large : %s" % str_intvalue
+            sys.exit(1)
+    ####
+
     param = {}
     for string in string_list:
         try:
@@ -137,7 +160,7 @@ def create_parameter(string_list):
             sys.exit(1)
 
         if value.isdigit() is True:
-            param[key] = pywbem.Uint16(value)
+            param[key] = get_uintvalue(value)
         elif (value[0] == '{') and (value[-1] == '}'):
             param[key] = create_instancename(value)
         else:
