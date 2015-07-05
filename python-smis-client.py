@@ -72,13 +72,14 @@ def opt_parse():
     im_parser = subparsers.add_parser('im', help='InvokeMethod')
     im_parser.add_argument('objectname', help='CIM Object Name')
     im_parser.add_argument('methodname', help='Method Name')
-    im_parser.add_argument('params', nargs='*', help='Parameters ( key1=value1 key2=value2 ..)')
+    im_parser.add_argument('params', nargs='*',
+                           help='Parameters ( key1=value1 key2=value2 ..)')
 
     # generate option list
     args = parser.parse_args()
 
-    if ((args.user is None) or (args.password is None)
-            or (args.location is None) or (args.namespace is None)):
+    if ((args.user is None) or (args.password is None) or
+            (args.location is None) or (args.namespace is None)):
         parser.print_help()
 
     return args.__dict__
@@ -135,18 +136,28 @@ def create_instancename(string):
 
 def create_parameter(string_list):
     ''' create parameter dictionary from string list'''
-    def get_uintvalue(str_intvalue):
-        intvalue = int(str_intvalue)
-        if intvalue < MAX_UINT8:
-            return pywbem.Uint8(str_intvalue)
-        elif intvalue < MAX_UINT16:
-            return pywbem.Uint16(str_intvalue)
-        elif intvalue < MAX_UINT32:
-            return pywbem.Uint32(str_intvalue)
-        elif intvalue < MAX_UINT64:
-            return pywbem.Uint64(str_intvalue)
+    def get_value(string):
+        vtype, value = string.split(',', 1)
+        if vtype == 'str':
+            return str(value)
+        elif vtype == 'uint8':
+            return pywbem.Uint8(value)
+        elif vtype == 'sint8':
+            return pywbem.Sint8(value)
+        elif vtype == 'uint16':
+            return pywbem.Uint16(value)
+        elif vtype == 'sint16':
+            return pywbem.Sint16(value)
+        elif vtype == 'uint32':
+            return pywbem.Uint32(value)
+        elif vtype == 'sint32':
+            return pywbem.Sint32(value)
+        elif vtype == 'uint64':
+            return pywbem.Uint64(value)
+        elif vtype == 'sint64':
+            return pywbem.Sint64(value)
         else:
-            print "Input value is too large : %s" % str_intvalue
+            print "Input value is invalid : %s" % string
             sys.exit(1)
     ####
 
@@ -159,10 +170,14 @@ def create_parameter(string_list):
             print "Input in \'key\'=\'value\' style"
             sys.exit(1)
 
-        if value.isdigit() is True:
-            param[key] = get_uintvalue(value)
+        if string is None:
+            param[key] = None
         elif (value[0] == '{') and (value[-1] == '}'):
             param[key] = create_instancename(value)
+        elif value.find(',') > -1:
+            param[key] = get_value(value)
+        elif value.isdigit() is True:
+            param[key] = int(value)
         else:
             param[key] = value
 
